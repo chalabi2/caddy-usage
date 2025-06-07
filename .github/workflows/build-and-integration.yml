@@ -1,0 +1,74 @@
+name: Build and Integration
+
+on:
+  push:
+    branches: [master, develop]
+  pull_request:
+    branches: [master, develop]
+
+jobs:
+  build:
+    name: Build & Integration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install development tools
+        run: make install-tools
+
+      - name: Fix dependencies
+        run: ./.github/scripts/fix-deps.sh
+
+      - name: Download dependencies
+        run: make deps
+
+      - name: Build binary
+        run: make build
+
+      - name: Test xcaddy build compatibility
+        run: make xcaddy-build
+
+      - name: Run integration tests
+        run: |
+          # Create test Caddyfile
+          cat > test-Caddyfile << EOF
+          :8080 {
+            usage
+            respond "Hello from Caddy with usage tracking!"
+          }
+          EOF
+
+          # Start Caddy in background
+          ./caddy run --config test-Caddyfile &
+          CADDY_PID=$!
+          sleep 3
+
+          # Test plugin functionality
+          echo "Testing plugin functionality..."
+          curl -f http://localhost:8080/ || exit 1
+          curl -f http://localhost:8080/test || exit 1
+          curl -f -X POST http://localhost:8080/api || exit 1
+          curl -f -H "Authorization: Bearer test-token" http://localhost:8080/secure || exit 1
+          curl -f -H "User-Agent: Test-Agent/1.0" http://localhost:8080/agent-test || exit 1
+
+          # Stop Caddy
+          kill $CADDY_PID || true
+
+          echo "Integration test passed!"

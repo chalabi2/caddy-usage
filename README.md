@@ -1,5 +1,13 @@
 # Caddy Usage Metrics Plugin
 
+[![Test and Quality](https://github.com/chalabi/caddy-usage/actions/workflows/test-and-quality.yml/badge.svg)](https://github.com/chalabi/caddy-usage/actions/workflows/test-and-quality.yml)
+[![Lint](https://github.com/chalabi/caddy-usage/actions/workflows/lint.yml/badge.svg)](https://github.com/chalabi/caddy-usage/actions/workflows/lint.yml)
+[![Security](https://github.com/chalabi/caddy-usage/actions/workflows/security.yml/badge.svg)](https://github.com/chalabi/caddy-usage/actions/workflows/security.yml)
+[![Build and Integration](https://github.com/chalabi/caddy-usage/actions/workflows/build-and-integration.yml/badge.svg)](https://github.com/chalabi/caddy-usage/actions/workflows/build-and-integration.yml)
+[![codecov](https://codecov.io/gh/chalabi/caddy-usage/graph/badge.svg?token=YOUR_CODECOV_TOKEN)](https://codecov.io/gh/chalabi/caddy-usage)
+[![Go Report Card](https://goreportcard.com/badge/github.com/chalabi/caddy-usage)](https://goreportcard.com/report/github.com/chalabi/caddy-usage)
+[![Go Reference](https://pkg.go.dev/badge/github.com/chalabi/caddy-usage.svg)](https://pkg.go.dev/github.com/chalabi/caddy-usage)
+
 > [!NOTE]
 > This is not an official repository of the [Caddy Web Server](https://github.com/caddyserver) organization.
 
