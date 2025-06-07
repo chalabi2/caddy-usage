@@ -1,7 +1,7 @@
 {
   "name": "caddy-usage",
   "version": "0.1.0",
-  "description": "Comprehensive request metrics collection plugin for Caddy",
+  "description": "better http request metrics for caddy ",
   "author": "chalabi",
   "homepage": "https://github.com/chalabi/caddy-usage",
   "repository": "https://github.com/chalabi/caddy-usage",
