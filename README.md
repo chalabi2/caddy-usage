@@ -4,10 +4,10 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/chalabi/caddy-usage)](https://goreportcard.com/report/github.com/chalabi/caddy-usage)
 [![Go Reference](https://pkg.go.dev/badge/github.com/chalabi/caddy-usage.svg)](https://pkg.go.dev/github.com/chalabi/caddy-usage)
 
+A comprehensive request metrics collection plugin for Caddy that integrates with Prometheus to provide detailed analytics about your web server usage.
+
 > [!NOTE]
 > This is not an official repository of the [Caddy Web Server](https://github.com/caddyserver) organization.
-
-A comprehensive request metrics collection plugin for Caddy that integrates with Prometheus to provide detailed analytics about your web server usage.
 
 ## Features
 

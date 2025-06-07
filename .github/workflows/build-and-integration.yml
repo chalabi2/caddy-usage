@@ -55,10 +55,10 @@ jobs:
           }
           EOF
 
-          # Start Caddy in background
-          ./caddy run --config test-Caddyfile &
+          # Start Caddy in background with explicit Caddyfile adapter
+          ./caddy run --config test-Caddyfile --adapter caddyfile &
           CADDY_PID=$!
-          sleep 3
+          sleep 5
 
           # Test plugin functionality
           echo "Testing plugin functionality..."
@@ -70,5 +70,6 @@ jobs:
 
           # Stop Caddy
           kill $CADDY_PID || true
+          sleep 2
 
           echo "Integration test passed!"
