@@ -98,8 +98,8 @@ xcaddy-run: xcaddy-build ## Build and run Caddy with this plugin
 ci: deps verify check test ## Run all CI checks locally
 
 install-tools: ## Install development tools
-	$(GOGET) github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-	$(GOGET) github.com/caddyserver/xcaddy/cmd/xcaddy@latest
+	bash -c "go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"
+	bash -c "go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest"
 
 ## Docker
 docker-build: ## Build Docker image

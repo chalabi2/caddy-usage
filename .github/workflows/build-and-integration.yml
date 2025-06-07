@@ -30,8 +30,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Install development tools
-        run: make install-tools
+      - name: Install xcaddy
+        run: bash -c "go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest"
 
       - name: Fix dependencies
         run: ./.github/scripts/fix-deps.sh

@@ -30,8 +30,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Install development tools
-        run: make install-tools
+      - name: Install golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          install-mode: "goinstall"
+          args: --version # Just install, don't run yet
 
       - name: Fix dependencies
         run: ./.github/scripts/fix-deps.sh
