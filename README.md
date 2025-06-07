@@ -1,8 +1,8 @@
 # Caddy Usage Metrics Plugin
 
-[![codecov](https://codecov.io/gh/chalabi/caddy-usage/graph/badge.svg)](https://codecov.io/gh/chalabi/caddy-usage)
-[![Go Report Card](https://goreportcard.com/badge/github.com/chalabi/caddy-usage)](https://goreportcard.com/report/github.com/chalabi/caddy-usage)
-[![Go Reference](https://pkg.go.dev/badge/github.com/chalabi/caddy-usage.svg)](https://pkg.go.dev/github.com/chalabi/caddy-usage)
+[![codecov](https://codecov.io/gh/chalabi2/caddy-usage/graph/badge.svg)](https://codecov.io/gh/chalabi2/caddy-usage)
+[![Go Report Card](https://goreportcard.com/badge/github.com/chalabi2/caddy-usage)](https://goreportcard.com/report/github.com/chalabi2/caddy-usage)
+[![Go Reference](https://pkg.go.dev/badge/github.com/chalabi2/caddy-usage.svg)](https://pkg.go.dev/github.com/chalabi2/caddy-usage)
 
 A comprehensive request metrics collection plugin for Caddy that integrates with the existing caddy metrics collector to provide detailed analytics about your web server usage.
 
