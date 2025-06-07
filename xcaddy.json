@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "description": "better http request metrics for caddy ",
   "author": "chalabi",
-  "homepage": "https://github.com/chalabi/caddy-usage",
-  "repository": "https://github.com/chalabi/caddy-usage",
+  "homepage": "https://github.com/chalabi2/caddy-usage",
+  "repository": "https://github.com/chalabi2/caddy-usage",
   "license": "Apache-2.0",
   "keywords": [
     "caddy",
@@ -16,7 +16,7 @@
   ],
   "caddy": {
     "module_id": "http.handlers.usage",
-    "go_module": "github.com/chalabi/caddy-usage",
+    "go_module": "github.com/chalabi2/caddy-usage",
     "directive": "usage"
   },
   "compatibility": {
