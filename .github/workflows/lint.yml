@@ -25,8 +25,7 @@ jobs:
         run: ./.github/scripts/fix-deps.sh
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.1.6
-          args: --timeout=10m
+          version: latest
           install-mode: "goinstall"
