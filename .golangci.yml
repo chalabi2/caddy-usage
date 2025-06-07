@@ -1,3 +1,9 @@
+version: 2
+
+run:
+  go: "1.24"
+  timeout: 10m
+
 linters:
   enable:
     - errcheck

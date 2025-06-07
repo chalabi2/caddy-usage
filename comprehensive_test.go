@@ -72,7 +72,7 @@ func TestHeaderMetricsProcessing(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(_ *testing.T) {
 			req := httptest.NewRequest("GET", "http://example.com/test", nil)
 			for key, value := range tc.headers {
 				req.Header.Set(key, value)
@@ -150,7 +150,7 @@ func TestClientIPExtractionComprehensive(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(_ *testing.T) {
 			req := httptest.NewRequest("GET", "http://example.com/", nil)
 			req.RemoteAddr = tc.remoteAddr
 
@@ -166,23 +166,16 @@ func TestClientIPExtractionComprehensive(t *testing.T) {
 	}
 }
 
-// TestMetricsAccuracy tests that metrics are recorded accurately
-func TestMetricsAccuracy(t *testing.T) {
-	// Create isolated registry for this test
+// setupTestMetrics is a helper function to set up metrics for testing
+func setupTestMetrics(t *testing.T) (*UsageCollector, *prometheus.Registry, func()) {
 	registry := prometheus.NewRegistry()
-
-	// Initialize metrics
 	metrics, err := initializeMetrics(registry)
 	if err != nil {
 		t.Fatalf("Failed to initialize metrics: %v", err)
 	}
 
-	// Backup and restore global metrics
 	originalMetrics := globalUsageMetrics
 	globalUsageMetrics = metrics
-	defer func() {
-		globalUsageMetrics = originalMetrics
-	}()
 
 	ctx := caddy.Context{
 		Context: context.Background(),
@@ -193,7 +186,15 @@ func TestMetricsAccuracy(t *testing.T) {
 		ctx:    ctx,
 	}
 
-	// Make specific requests and verify metrics
+	cleanup := func() {
+		globalUsageMetrics = originalMetrics
+	}
+
+	return uc, registry, cleanup
+}
+
+// collectTestRequests is a helper function to collect metrics for test requests
+func collectTestRequests(_ *testing.T, uc *UsageCollector) {
 	requests := []struct {
 		method     string
 		url        string
@@ -216,8 +217,10 @@ func TestMetricsAccuracy(t *testing.T) {
 		startTime := time.Now()
 		uc.collectMetrics(rec, httpReq, startTime)
 	}
+}
 
-	// Gather metrics and verify basic counts
+// verifyMetricsPresence is a helper function to verify that expected metrics are present
+func verifyMetricsPresence(t *testing.T, registry *prometheus.Registry) {
 	metricFamilies, err := registry.Gather()
 	if err != nil {
 		t.Fatalf("Failed to gather metrics: %v", err)
@@ -225,39 +228,36 @@ func TestMetricsAccuracy(t *testing.T) {
 
 	if len(metricFamilies) == 0 {
 		t.Error("No metrics were recorded")
+		return
 	}
 
-	// Look for our metrics
-	foundRequestsTotal := false
-	foundRequestsByIP := false
-	foundRequestsByURL := false
-	foundDuration := false
+	expectedMetrics := map[string]bool{
+		"caddy_usage_requests_total":           false,
+		"caddy_usage_requests_by_ip_total":     false,
+		"caddy_usage_requests_by_url_total":    false,
+		"caddy_usage_request_duration_seconds": false,
+	}
 
 	for _, mf := range metricFamilies {
-		switch *mf.Name {
-		case "caddy_usage_requests_total":
-			foundRequestsTotal = true
-		case "caddy_usage_requests_by_ip_total":
-			foundRequestsByIP = true
-		case "caddy_usage_requests_by_url_total":
-			foundRequestsByURL = true
-		case "caddy_usage_request_duration_seconds":
-			foundDuration = true
+		if _, exists := expectedMetrics[*mf.Name]; exists {
+			expectedMetrics[*mf.Name] = true
 		}
 	}
 
-	if !foundRequestsTotal {
-		t.Error("requests_total metric not found")
+	for metricName, found := range expectedMetrics {
+		if !found {
+			t.Errorf("%s metric not found", metricName)
+		}
 	}
-	if !foundRequestsByIP {
-		t.Error("requests_by_ip_total metric not found")
-	}
-	if !foundRequestsByURL {
-		t.Error("requests_by_url_total metric not found")
-	}
-	if !foundDuration {
-		t.Error("request_duration_seconds metric not found")
-	}
+}
+
+// TestMetricsAccuracy tests that metrics are recorded accurately
+func TestMetricsAccuracy(t *testing.T) {
+	uc, registry, cleanup := setupTestMetrics(t)
+	defer cleanup()
+
+	collectTestRequests(t, uc)
+	verifyMetricsPresence(t, registry)
 }
 
 // TestConcurrentMetricsCollection tests metrics collection under concurrent load
@@ -285,7 +285,7 @@ func TestConcurrentMetricsCollection(t *testing.T) {
 
 	for i := 0; i < numGoroutines; i++ {
 		wg.Add(1)
-		go func(goroutineID int) {
+		go func(_ int) {
 			defer wg.Done()
 
 			for j := 0; j < requestsPerGoroutine; j++ {
@@ -425,7 +425,7 @@ func TestMetricsWithSpecialCharacters(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(_ *testing.T) {
 			req := httptest.NewRequest("GET", tc.url, nil)
 			req.RemoteAddr = "192.168.1.100:8080"
 

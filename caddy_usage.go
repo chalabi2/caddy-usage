@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/caddyserver/caddy/v2"
@@ -32,8 +31,6 @@ type usageMetrics struct {
 var (
 	// Global metrics instance
 	globalUsageMetrics *usageMetrics
-	// Ensure metrics are only initialized once
-	metricsOnce sync.Once
 )
 
 // initializeMetrics creates and registers all usage metrics with Caddy's metrics registry
@@ -185,7 +182,9 @@ func (uc *UsageCollector) ServeHTTP(w http.ResponseWriter, r *http.Request, next
 	err := next.ServeHTTP(rec, r)
 
 	// Write the recorded response back to the client
-	rec.WriteResponse()
+	if writeErr := rec.WriteResponse(); writeErr != nil {
+		uc.logger.Warn("failed to write response", zap.Error(writeErr))
+	}
 
 	// Collect metrics after the request has been processed
 	uc.collectMetrics(rec, r, startTime)

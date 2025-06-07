@@ -104,7 +104,7 @@ func TestServeHTTP(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	// Create next handler that writes a response
-	next := caddyhttp.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+	next := caddyhttp.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) error {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("test response"))
 		return nil
@@ -254,7 +254,7 @@ func TestDuplicateRegistration(t *testing.T) {
 }
 
 // TestCollectMetricsWithNilGlobal tests handling when global metrics is nil
-func TestCollectMetricsWithNilGlobal(t *testing.T) {
+func TestCollectMetricsWithNilGlobal(_ *testing.T) {
 	// Save current global metrics
 	originalMetrics := globalUsageMetrics
 	defer func() {
@@ -294,7 +294,10 @@ func TestCollectMetricsWithNilGlobal(t *testing.T) {
 func BenchmarkCollectMetrics(b *testing.B) {
 	// Setup
 	registry := prometheus.NewRegistry()
-	registerMetrics(registry)
+	err := registerMetrics(registry)
+	if err != nil {
+		b.Fatalf("Failed to register metrics: %v", err)
+	}
 
 	core, _ := observer.New(zapcore.ErrorLevel)
 	logger := zap.New(core)

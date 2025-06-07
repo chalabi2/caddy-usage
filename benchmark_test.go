@@ -1,3 +1,6 @@
+// Package caddyusage provides comprehensive HTTP metrics collection for Caddy.
+// This file contains benchmarks for testing the performance of metrics collection
+// functionality under various scenarios including concurrent usage and memory allocation.
 package caddyusage
 
 import (
@@ -192,7 +195,7 @@ func BenchmarkCompleteRequestFlow(b *testing.B) {
 	}
 
 	// Create next handler
-	next := caddyhttp.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+	next := caddyhttp.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) error {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("test response"))
 		return nil
