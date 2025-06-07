@@ -9,3 +9,6 @@
 /bin/
 .env
 .DS_Store
+
+caddy
+coverage.out
