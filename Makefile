@@ -35,24 +35,24 @@ clean: ## Remove build artifacts
 	$(GOCLEAN)
 	rm -f $(BINARY_NAME)
 	rm -f $(BINARY_UNIX)
-	rm -f coverage.out
+	rm -f coverage.txt
 	rm -f coverage.html
 
 ## Testing
 test: ## Run unit tests
-	$(GOTEST) -v -race -coverprofile=coverage.out ./...
+	$(GOTEST) -v -race -coverprofile=coverage.txt ./...
 
 test-unit: ## Run unit tests only (excluding integration)
-	$(GOTEST) -v -race -coverprofile=coverage.out -tags="!integration" ./...
+	$(GOTEST) -v -race -coverprofile=coverage.txt -tags="!integration" ./...
 
 test-all: ## Run all tests including integration
-	$(GOTEST) -v -race -coverprofile=coverage.out ./...
+	$(GOTEST) -v -race -coverprofile=coverage.txt ./...
 
 test-short: ## Run tests in short mode
 	$(GOTEST) -v -short ./...
 
 coverage: test ## Generate coverage report
-	$(GOCMD) tool cover -html=coverage.out -o coverage.html
+	$(GOCMD) tool cover -html=coverage.txt -o coverage.html
 	@echo "Coverage report generated: coverage.html"
 
 race: ## Run tests with race detection

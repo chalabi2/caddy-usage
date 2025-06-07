@@ -49,7 +49,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+          go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
 
       - name: Run race detection tests
         run: make race
@@ -57,12 +57,7 @@ jobs:
       - name: Run benchmarks
         run: make benchmark
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
         with:
-          file: ./coverage.out
-          flags: unittests
-          name: codecov-umbrella
           token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          verbose: true

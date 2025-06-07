@@ -11,5 +11,5 @@
 .DS_Store
 
 caddy
-coverage.out
+coverage.txt
 caddy-usage
