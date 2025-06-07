@@ -1,4 +1,4 @@
-module github.com/chalabi/caddy-usage
+module github.com/chalabi2/caddy-usage
 
 go 1.24
 

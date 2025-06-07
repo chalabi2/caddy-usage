@@ -23,7 +23,7 @@ A comprehensive request metrics collection plugin for Caddy that integrates with
 Build Caddy with this plugin using [xcaddy](https://github.com/caddyserver/xcaddy):
 
 ```bash
-xcaddy build --with github.com/chalabi/caddy-usage
+xcaddy build --with github.com/chalabi2/caddy-usage
 ```
 
 Or add to your `xcaddy.json`:
@@ -32,7 +32,7 @@ Or add to your `xcaddy.json`:
 {
   "dependencies": [
     {
-      "module": "github.com/chalabi/caddy-usage",
+      "module": "github.com/chalabi2/caddy-usage",
       "version": "latest"
     }
   ]
@@ -283,7 +283,7 @@ topk(10, sum by (header_value) (caddy_usage_requests_by_headers_total{header_nam
 ## Building from Source
 
 ```bash
-git clone https://github.com/chalabi/caddy-usage
+git clone https://github.com/chalabi2/caddy-usage
 cd caddy-usage
 make deps
 make xcaddy-build
