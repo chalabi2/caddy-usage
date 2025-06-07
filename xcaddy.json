@@ -1,0 +1,33 @@
+{
+  "name": "caddy-usage",
+  "version": "v1.0.0",
+  "description": "Comprehensive request metrics collection plugin for Caddy",
+  "author": "chalabi",
+  "homepage": "https://github.com/chalabi/caddy-usage",
+  "repository": "https://github.com/chalabi/caddy-usage",
+  "license": "Apache-2.0",
+  "keywords": [
+    "caddy",
+    "plugin",
+    "metrics",
+    "prometheus",
+    "monitoring",
+    "analytics"
+  ],
+  "caddy": {
+    "module_id": "http.handlers.usage",
+    "go_module": "github.com/chalabi/caddy-usage",
+    "directive": "usage"
+  },
+  "compatibility": {
+    "caddy": ">=2.7.0",
+    "go": ">=1.21"
+  },
+  "features": [
+    "Request metrics collection",
+    "Prometheus integration",
+    "Client IP tracking",
+    "URL and header analytics",
+    "Request duration monitoring"
+  ]
+}

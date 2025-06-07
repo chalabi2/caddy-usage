@@ -1,0 +1,128 @@
+{
+  "admin": {
+    "listen": "localhost:2019"
+  },
+  "metrics": {},
+  "apps": {
+    "http": {
+      "servers": {
+        "srv0": {
+          "listen": [":80", ":443"],
+          "routes": [
+            {
+              "match": [
+                {
+                  "host": ["example.com"]
+                }
+              ],
+              "handle": [
+                {
+                  "handler": "usage"
+                },
+                {
+                  "handler": "subroute",
+                  "routes": [
+                    {
+                      "match": [
+                        {
+                          "path": ["/api/*"]
+                        }
+                      ],
+                      "handle": [
+                        {
+                          "handler": "usage"
+                        },
+                        {
+                          "handler": "static_response",
+                          "body": "API Response",
+                          "status_code": 200
+                        }
+                      ]
+                    },
+                    {
+                      "match": [
+                        {
+                          "path": ["/health"]
+                        }
+                      ],
+                      "handle": [
+                        {
+                          "handler": "usage"
+                        },
+                        {
+                          "handler": "static_response",
+                          "body": "OK",
+                          "status_code": 200
+                        }
+                      ]
+                    },
+                    {
+                      "handle": [
+                        {
+                          "handler": "file_server"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "match": [
+                {
+                  "host": ["api.example.com"]
+                }
+              ],
+              "handle": [
+                {
+                  "handler": "usage"
+                },
+                {
+                  "handler": "reverse_proxy",
+                  "upstreams": [
+                    {
+                      "dial": "localhost:8080"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "match": [
+                {
+                  "host": ["localhost"]
+                }
+              ],
+              "handle": [
+                {
+                  "handler": "usage"
+                },
+                {
+                  "handler": "static_response",
+                  "body": "Development Server",
+                  "status_code": 200
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "logging": {
+    "logs": {
+      "default": {
+        "level": "INFO"
+      },
+      "access": {
+        "writer": {
+          "output": "file",
+          "filename": "/var/log/caddy/access.log"
+        },
+        "encoder": {
+          "format": "json"
+        }
+      }
+    }
+  }
+}

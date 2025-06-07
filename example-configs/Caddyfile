@@ -1,0 +1,60 @@
+# Example Caddyfile configuration for caddy-usage plugin
+# This configuration enables comprehensive request metrics collection
+
+{
+    # Enable Caddy's built-in metrics system
+    servers {
+        metrics
+    }
+    
+    # Optional: Set admin API endpoint
+    admin localhost:2019
+}
+
+# Main site configuration
+example.com {
+    # Enable usage metrics collection
+    # This directive automatically collects all request metrics
+    usage
+    
+    # Serve static files from current directory
+    file_server
+    
+    # Optional: Add some routes to demonstrate metrics collection
+    route /api/* {
+        usage  # Can be added to specific routes too
+        respond "API Response"
+    }
+    
+    route /health {
+        usage
+        respond "OK" 200
+    }
+}
+
+# Another site example
+api.example.com {
+    usage
+    
+    # Reverse proxy example
+    reverse_proxy localhost:8080
+}
+
+# Development site with detailed logging
+localhost:8080 {
+    usage
+    
+    # Enable request logging for debugging
+    log {
+        output file /var/log/caddy/access.log
+        format json
+    }
+    
+    respond "Development Server"
+}
+
+# The metrics will be available at:
+# http://localhost:2019/metrics (default admin endpoint)
+# 
+# To view metrics, you can use:
+# curl http://localhost:2019/metrics | grep caddy_usage 
