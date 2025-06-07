@@ -1,6 +1,6 @@
 # Caddy Usage Metrics Plugin
 
-[![codecov](https://codecov.io/gh/chalabi/caddy-usage/graph/badge.svg?token=YOUR_CODECOV_TOKEN)](https://codecov.io/gh/chalabi/caddy-usage)
+[![codecov](https://codecov.io/gh/chalabi/caddy-usage/graph/badge.svg)](https://codecov.io/gh/chalabi/caddy-usage)
 [![Go Report Card](https://goreportcard.com/badge/github.com/chalabi/caddy-usage)](https://goreportcard.com/report/github.com/chalabi/caddy-usage)
 [![Go Reference](https://pkg.go.dev/badge/github.com/chalabi/caddy-usage.svg)](https://pkg.go.dev/github.com/chalabi/caddy-usage)
 
