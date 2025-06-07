@@ -1,9 +1,0 @@
-{
-    admin localhost:2019
-    order usage before respond
-}
-
-:8080 {
-    usage
-    respond "Hello from Caddy with usage tracking!"
-} 

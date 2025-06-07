@@ -2,7 +2,29 @@
   "admin": {
     "listen": "localhost:2019"
   },
-  "metrics": {},
+  "metrics": {
+    "per_host": true
+  },
+  "logging": {
+    "logs": {
+      "default": {
+        "level": "INFO",
+        "encoder": {
+          "format": "console"
+        }
+      },
+      "access": {
+        "writer": {
+          "output": "file",
+          "filename": "/var/log/caddy/access.log"
+        },
+        "encoder": {
+          "format": "json"
+        },
+        "include": ["http.log.access"]
+      }
+    }
+  },
   "apps": {
     "http": {
       "servers": {
@@ -34,8 +56,11 @@
                         },
                         {
                           "handler": "static_response",
-                          "body": "API Response",
-                          "status_code": 200
+                          "body": "API Response: {http.request.method} {http.request.uri}",
+                          "status_code": 200,
+                          "headers": {
+                            "Content-Type": ["application/json"]
+                          }
                         }
                       ]
                     },
@@ -57,9 +82,24 @@
                       ]
                     },
                     {
+                      "match": [
+                        {
+                          "path": ["/metrics"]
+                        }
+                      ],
                       "handle": [
                         {
-                          "handler": "file_server"
+                          "handler": "static_response",
+                          "body": "Metrics available at admin endpoint: http://localhost:2019/metrics",
+                          "status_code": 200
+                        }
+                      ]
+                    },
+                    {
+                      "handle": [
+                        {
+                          "handler": "file_server",
+                          "root": "/var/www/html"
                         }
                       ]
                     }
@@ -83,7 +123,18 @@
                     {
                       "dial": "localhost:8080"
                     }
-                  ]
+                  ],
+                  "health_checks": {
+                    "passive": {
+                      "max_fails": 3,
+                      "fail_duration": "30s"
+                    },
+                    "active": {
+                      "uri": "/health",
+                      "interval": "30s",
+                      "timeout": "5s"
+                    }
+                  }
                 }
               ]
             },
@@ -98,29 +149,62 @@
                   "handler": "usage"
                 },
                 {
-                  "handler": "static_response",
-                  "body": "Development Server",
-                  "status_code": 200
+                  "handler": "subroute",
+                  "routes": [
+                    {
+                      "match": [
+                        {
+                          "path": ["/test/*"]
+                        }
+                      ],
+                      "handle": [
+                        {
+                          "handler": "usage"
+                        },
+                        {
+                          "handler": "static_response",
+                          "body": "Test endpoint: {http.request.uri}",
+                          "status_code": 200
+                        }
+                      ]
+                    },
+                    {
+                      "match": [
+                        {
+                          "path": ["/api/v1/*"]
+                        }
+                      ],
+                      "handle": [
+                        {
+                          "handler": "usage"
+                        },
+                        {
+                          "handler": "static_response",
+                          "body": "{\"message\": \"API v1 Response\", \"path\": \"{http.request.uri}\", \"method\": \"{http.request.method}\"}",
+                          "status_code": 200,
+                          "headers": {
+                            "Content-Type": ["application/json"]
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "handle": [
+                        {
+                          "handler": "static_response",
+                          "body": "Development Server - Usage Metrics Enabled",
+                          "status_code": 200
+                        }
+                      ]
+                    }
+                  ]
                 }
               ]
             }
-          ]
-        }
-      }
-    }
-  },
-  "logging": {
-    "logs": {
-      "default": {
-        "level": "INFO"
-      },
-      "access": {
-        "writer": {
-          "output": "file",
-          "filename": "/var/log/caddy/access.log"
-        },
-        "encoder": {
-          "format": "json"
+          ],
+          "logs": {
+            "default_logger_name": "access"
+          }
         }
       }
     }

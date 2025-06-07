@@ -1,10 +1,10 @@
 package caddyusage
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/caddyserver/caddy/v2"
@@ -20,22 +20,130 @@ func init() {
 	httpcaddyfile.RegisterHandlerDirective("usage", parseCaddyfile)
 }
 
-// UsageCollector is a Caddy HTTP handler that collects comprehensive request metrics
-// and exports them to Prometheus. It tracks response status codes, client IPs,
-// requested URLs, and request headers.
-type UsageCollector struct {
-	// Logger for debug and error messages
-	logger *zap.Logger
-
-	// Prometheus metrics
+// usageMetrics holds all the usage metrics
+type usageMetrics struct {
 	requestsTotal     *prometheus.CounterVec
 	requestsByIP      *prometheus.CounterVec
 	requestsByURL     *prometheus.CounterVec
 	requestsByHeaders *prometheus.CounterVec
 	requestDuration   *prometheus.HistogramVec
+}
 
-	// Metrics registry for proper cleanup
-	registry prometheus.Registerer
+var (
+	// Global metrics instance
+	globalUsageMetrics *usageMetrics
+	// Ensure metrics are only initialized once
+	metricsOnce sync.Once
+)
+
+// initializeMetrics creates and registers all usage metrics with Caddy's metrics registry
+func initializeMetrics(registry prometheus.Registerer) (*usageMetrics, error) {
+	const ns, sub = "caddy", "usage"
+
+	metrics := &usageMetrics{
+		// Total requests by status code, method, and host
+		requestsTotal: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Namespace: ns,
+				Subsystem: sub,
+				Name:      "requests_total",
+				Help:      "Total number of HTTP requests by status code, method, and host",
+			},
+			[]string{"status_code", "method", "host", "path"},
+		),
+
+		// Requests by client IP address
+		requestsByIP: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Namespace: ns,
+				Subsystem: sub,
+				Name:      "requests_by_ip_total",
+				Help:      "Total number of requests by client IP address",
+			},
+			[]string{"client_ip", "status_code", "method"},
+		),
+
+		// Requests by exact URL path and query parameters
+		requestsByURL: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Namespace: ns,
+				Subsystem: sub,
+				Name:      "requests_by_url_total",
+				Help:      "Total number of requests by exact URL path and query parameters",
+			},
+			[]string{"full_url", "method", "status_code"},
+		),
+
+		// Requests by specific headers (User-Agent, Referer, etc.)
+		requestsByHeaders: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Namespace: ns,
+				Subsystem: sub,
+				Name:      "requests_by_headers_total",
+				Help:      "Total number of requests by specific header values",
+			},
+			[]string{"header_name", "header_value", "method", "status_code"},
+		),
+
+		// Request duration histogram
+		requestDuration: prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Namespace: ns,
+				Subsystem: sub,
+				Name:      "request_duration_seconds",
+				Help:      "HTTP request duration in seconds",
+				Buckets:   prometheus.DefBuckets,
+			},
+			[]string{"method", "status_code", "host"},
+		),
+	}
+
+	// Register each metric with Caddy's registry
+	collectors := []prometheus.Collector{
+		metrics.requestsTotal,
+		metrics.requestsByIP,
+		metrics.requestsByURL,
+		metrics.requestsByHeaders,
+		metrics.requestDuration,
+	}
+
+	for _, collector := range collectors {
+		if err := registry.Register(collector); err != nil {
+			// Check if it's already registered error, which is expected on config reload
+			if _, ok := err.(prometheus.AlreadyRegisteredError); !ok {
+				// If it's not an AlreadyRegisteredError, return the actual error
+				return nil, err
+			}
+			// If it's AlreadyRegisteredError, continue - this is expected
+		}
+	}
+
+	return metrics, nil
+}
+
+// registerMetrics registers all usage metrics with the provided Prometheus registry
+func registerMetrics(registry prometheus.Registerer) error {
+	// Try to initialize metrics - may handle AlreadyRegisteredError gracefully
+	metrics, err := initializeMetrics(registry)
+	if err != nil {
+		return err
+	}
+
+	// Set the global metrics instance if it's nil
+	// On config reload, this ensures we continue using metrics even if some were already registered
+	if globalUsageMetrics == nil {
+		globalUsageMetrics = metrics
+	}
+
+	return nil
+}
+
+// UsageCollector is a Caddy HTTP handler that collects comprehensive request metrics
+// and integrates them with Caddy's built-in metrics system. It tracks response status codes,
+// client IPs, requested URLs, and request headers.
+type UsageCollector struct {
+	logger *zap.Logger
+	ctx    caddy.Context
 }
 
 // CaddyModule returns the Caddy module information
@@ -48,152 +156,20 @@ func (UsageCollector) CaddyModule() caddy.ModuleInfo {
 
 // Provision sets up the UsageCollector with necessary resources
 func (uc *UsageCollector) Provision(ctx caddy.Context) error {
+	uc.ctx = ctx
 	uc.logger = ctx.Logger(uc)
 
-	// Use default Prometheus registry
-	uc.registry = prometheus.DefaultRegisterer
-
-	// Initialize metrics
-	if err := uc.registerMetrics(); err != nil {
-		return err
+	// Register metrics with Caddy's internal metrics registry
+	if registry := ctx.GetMetricsRegistry(); registry != nil {
+		if err := registerMetrics(registry); err != nil {
+			uc.logger.Warn("failed to register usage metrics", zap.Error(err))
+		}
+	} else {
+		uc.logger.Warn("metrics registry not available, disabling metrics")
 	}
 
 	uc.logger.Info("usage collector provisioned successfully")
 	return nil
-}
-
-// registerMetrics initializes and registers all Prometheus metrics for request tracking
-// This handles duplicate registration errors gracefully for config reloads
-func (uc *UsageCollector) registerMetrics() error {
-	uc.initializeMetrics()
-	return uc.registerAllMetrics()
-}
-
-// initializeMetrics creates all the Prometheus metrics
-func (uc *UsageCollector) initializeMetrics() {
-	// Total requests by status code, method, and host
-	uc.requestsTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "caddy_usage_requests_total",
-			Help: "Total number of HTTP requests by status code, method, and host",
-		},
-		[]string{"status_code", "method", "host", "path"},
-	)
-
-	// Requests by client IP address
-	uc.requestsByIP = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "caddy_usage_requests_by_ip_total",
-			Help: "Total number of requests by client IP address",
-		},
-		[]string{"client_ip", "status_code", "method"},
-	)
-
-	// Requests by exact URL path and query parameters
-	uc.requestsByURL = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "caddy_usage_requests_by_url_total",
-			Help: "Total number of requests by exact URL path and query parameters",
-		},
-		[]string{"full_url", "method", "status_code"},
-	)
-
-	// Requests by specific headers (User-Agent, Referer, etc.)
-	uc.requestsByHeaders = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "caddy_usage_requests_by_headers_total",
-			Help: "Total number of requests by specific header values",
-		},
-		[]string{"header_name", "header_value", "method", "status_code"},
-	)
-
-	// Request duration histogram
-	uc.requestDuration = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "caddy_usage_request_duration_seconds",
-			Help:    "HTTP request duration in seconds",
-			Buckets: prometheus.DefBuckets,
-		},
-		[]string{"method", "status_code", "host"},
-	)
-}
-
-// registerAllMetrics registers all metrics with Prometheus, handling duplicates gracefully
-func (uc *UsageCollector) registerAllMetrics() error {
-	metrics := []prometheus.Collector{
-		uc.requestsTotal,
-		uc.requestsByIP,
-		uc.requestsByURL,
-		uc.requestsByHeaders,
-		uc.requestDuration,
-	}
-
-	for i, metric := range metrics {
-		if err := uc.registerSingleMetric(metric, i); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// registerSingleMetric registers a single metric and handles duplicate registration
-func (uc *UsageCollector) registerSingleMetric(metric prometheus.Collector, index int) error {
-	if err := uc.registry.Register(metric); err != nil {
-		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
-			uc.logger.Debug("metric already registered, using existing", zap.Error(err))
-			uc.replaceWithExistingMetric(are, index)
-			return nil
-		}
-		return fmt.Errorf("failed to register metric: %w", err)
-	}
-	return nil
-}
-
-// replaceWithExistingMetric replaces our metric with the existing registered one
-func (uc *UsageCollector) replaceWithExistingMetric(are prometheus.AlreadyRegisteredError, index int) {
-	switch index {
-	case 0:
-		uc.replaceRequestsTotal(are)
-	case 1:
-		uc.replaceRequestsByIP(are)
-	case 2:
-		uc.replaceRequestsByURL(are)
-	case 3:
-		uc.replaceRequestsByHeaders(are)
-	case 4:
-		uc.replaceRequestDuration(are)
-	}
-}
-
-func (uc *UsageCollector) replaceRequestsTotal(are prometheus.AlreadyRegisteredError) {
-	if existing, ok := are.ExistingCollector.(*prometheus.CounterVec); ok {
-		uc.requestsTotal = existing
-	}
-}
-
-func (uc *UsageCollector) replaceRequestsByIP(are prometheus.AlreadyRegisteredError) {
-	if existing, ok := are.ExistingCollector.(*prometheus.CounterVec); ok {
-		uc.requestsByIP = existing
-	}
-}
-
-func (uc *UsageCollector) replaceRequestsByURL(are prometheus.AlreadyRegisteredError) {
-	if existing, ok := are.ExistingCollector.(*prometheus.CounterVec); ok {
-		uc.requestsByURL = existing
-	}
-}
-
-func (uc *UsageCollector) replaceRequestsByHeaders(are prometheus.AlreadyRegisteredError) {
-	if existing, ok := are.ExistingCollector.(*prometheus.CounterVec); ok {
-		uc.requestsByHeaders = existing
-	}
-}
-
-func (uc *UsageCollector) replaceRequestDuration(are prometheus.AlreadyRegisteredError) {
-	if existing, ok := are.ExistingCollector.(*prometheus.HistogramVec); ok {
-		uc.requestDuration = existing
-	}
 }
 
 // ServeHTTP implements the HTTP handler interface. This is where we collect
@@ -208,6 +184,9 @@ func (uc *UsageCollector) ServeHTTP(w http.ResponseWriter, r *http.Request, next
 	// Continue with the next handler in the chain
 	err := next.ServeHTTP(rec, r)
 
+	// Write the recorded response back to the client
+	rec.WriteResponse()
+
 	// Collect metrics after the request has been processed
 	uc.collectMetrics(rec, r, startTime)
 
@@ -216,6 +195,12 @@ func (uc *UsageCollector) ServeHTTP(w http.ResponseWriter, r *http.Request, next
 
 // collectMetrics gathers all the comprehensive metrics from the completed request
 func (uc *UsageCollector) collectMetrics(rec caddyhttp.ResponseRecorder, r *http.Request, startTime time.Time) {
+	// Use global metrics instance
+	if globalUsageMetrics == nil {
+		uc.logger.Error("usage metrics not initialized")
+		return
+	}
+
 	// Calculate request duration
 	duration := time.Since(startTime).Seconds()
 
@@ -228,26 +213,18 @@ func (uc *UsageCollector) collectMetrics(rec caddyhttp.ResponseRecorder, r *http
 	clientIP := getClientIP(r)
 
 	// Update basic request metrics
-	uc.requestsTotal.WithLabelValues(statusCode, method, host, path).Inc()
-	uc.requestsByIP.WithLabelValues(clientIP, statusCode, method).Inc()
-	uc.requestsByURL.WithLabelValues(fullURL, method, statusCode).Inc()
-	uc.requestDuration.WithLabelValues(method, statusCode, host).Observe(duration)
+
+	globalUsageMetrics.requestsTotal.WithLabelValues(statusCode, method, host, path).Inc()
+	globalUsageMetrics.requestsByIP.WithLabelValues(clientIP, statusCode, method).Inc()
+	globalUsageMetrics.requestsByURL.WithLabelValues(fullURL, method, statusCode).Inc()
+	globalUsageMetrics.requestDuration.WithLabelValues(method, statusCode, host).Observe(duration)
 
 	// Collect metrics for important headers
-	uc.collectHeaderMetrics(r, method, statusCode)
-
-	// Log debug information
-	uc.logger.Debug("collected usage metrics",
-		zap.String("client_ip", clientIP),
-		zap.String("method", method),
-		zap.String("url", fullURL),
-		zap.String("status", statusCode),
-		zap.Float64("duration", duration),
-	)
+	uc.collectHeaderMetrics(globalUsageMetrics, r, method, statusCode)
 }
 
 // collectHeaderMetrics extracts and records metrics for important HTTP headers
-func (uc *UsageCollector) collectHeaderMetrics(r *http.Request, method, statusCode string) {
+func (uc *UsageCollector) collectHeaderMetrics(um *usageMetrics, r *http.Request, method, statusCode string) {
 	// List of headers we want to track
 	importantHeaders := []string{
 		"User-Agent",
@@ -275,7 +252,7 @@ func (uc *UsageCollector) collectHeaderMetrics(r *http.Request, method, statusCo
 				headerValue = headerValue[:100] + "..."
 			}
 
-			uc.requestsByHeaders.WithLabelValues(headerName, headerValue, method, statusCode).Inc()
+			um.requestsByHeaders.WithLabelValues(headerName, headerValue, method, statusCode).Inc()
 		}
 	}
 }
@@ -302,11 +279,26 @@ func getClientIP(r *http.Request) string {
 	}
 
 	// Fall back to RemoteAddr
+	// Handle IPv6 addresses which are in format [::1]:port
+	if strings.HasPrefix(r.RemoteAddr, "[") {
+		if endBracket := strings.Index(r.RemoteAddr, "]"); endBracket != -1 {
+			return r.RemoteAddr[:endBracket+1]
+		}
+	}
+
+	// Handle IPv4 addresses in format ip:port
 	if ip := strings.Split(r.RemoteAddr, ":"); len(ip) > 0 {
 		return ip[0]
 	}
 
 	return r.RemoteAddr
+}
+
+// Cleanup cleans up the handler, following caddy-ratelimit pattern
+func (uc *UsageCollector) Cleanup() error {
+	// Note: We don't delete metrics from the pool here because they might be used
+	// by other instances. Metrics will be cleaned up when the process exits.
+	return nil
 }
 
 // Validate implements caddy.Validator to ensure the module configuration is valid
@@ -341,6 +333,7 @@ func (uc *UsageCollector) UnmarshalCaddyfile(_ *caddyfile.Dispenser) error {
 var (
 	_ caddy.Provisioner           = (*UsageCollector)(nil)
 	_ caddy.Validator             = (*UsageCollector)(nil)
+	_ caddy.CleanerUpper          = (*UsageCollector)(nil)
 	_ caddyhttp.MiddlewareHandler = (*UsageCollector)(nil)
 	_ caddyfile.Unmarshaler       = (*UsageCollector)(nil)
 )

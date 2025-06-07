@@ -23,7 +23,7 @@ A comprehensive request metrics collection plugin for Caddy that integrates with
 Build Caddy with this plugin using [xcaddy](https://github.com/caddyserver/xcaddy):
 
 ```bash
-bash -c "xcaddy build --with github.com/chalabi/caddy-usage"
+xcaddy build --with github.com/chalabi/caddy-usage
 ```
 
 Or add to your `xcaddy.json`:
@@ -110,16 +110,16 @@ The plugin exposes the following Prometheus metrics:
 
 ## Configuration
 
+> **Note:** Complete example configurations are available in the [`example-configs/`](example-configs/) directory.
+
 ### Caddyfile
 
 Simple usage - add the `usage` directive to any site or route:
 
 ```caddyfile
 {
-    # Enable Caddy's metrics system
-    servers {
-        metrics
-    }
+    # Enable Caddy's metrics system globally
+    metrics
     admin localhost:2019
 }
 
@@ -131,12 +131,14 @@ example.com {
 
 # Or add to specific routes
 api.example.com {
-    route /api/* {
-        usage
+    usage
+
+    handle /api/* {
+        usage  # Additional tracking for API routes
         reverse_proxy localhost:8080
     }
 
-    route /health {
+    handle /health {
         usage
         respond "OK" 200
     }
@@ -150,11 +152,14 @@ api.example.com {
   "admin": {
     "listen": "localhost:2019"
   },
-  "metrics": {},
+  "metrics": {
+    "per_host": true
+  },
   "apps": {
     "http": {
       "servers": {
         "srv0": {
+          "listen": [":80", ":443"],
           "routes": [
             {
               "match": [{ "host": ["example.com"] }],
@@ -163,7 +168,8 @@ api.example.com {
                   "handler": "usage"
                 },
                 {
-                  "handler": "file_server"
+                  "handler": "file_server",
+                  "root": "/var/www/html"
                 }
               ]
             }
@@ -183,9 +189,9 @@ api.example.com {
 
 ```caddyfile
 {
-    servers {
-        metrics
-    }
+    # Enable metrics globally
+    metrics
+    admin localhost:2019
 }
 
 localhost {
@@ -197,21 +203,36 @@ localhost {
 2. **Start Caddy:**
 
 ```bash
-bash -c "make xcaddy-run"
+# Build with xcaddy first
+make xcaddy-build
+
+# Or run directly (if you have the example Caddyfile)
+make xcaddy-run
 ```
 
 3. **Generate some traffic:**
 
 ```bash
-bash -c "curl localhost"
-bash -c "curl localhost/api"
-bash -c "curl -H 'User-Agent: MyBot/1.0' localhost"
+# Basic requests
+curl localhost
+curl localhost/api
+curl localhost/health
+
+# Test with different headers
+curl -H 'User-Agent: MyBot/1.0' localhost
+curl -H 'Authorization: Bearer test-token' localhost/api
+curl -X POST localhost/api/users
 ```
 
 4. **View metrics:**
 
 ```bash
-bash -c "curl localhost:2019/metrics | grep caddy_usage"
+# View all usage metrics
+curl localhost:2019/metrics | grep caddy_usage
+
+# Or view specific metrics
+curl -s localhost:2019/metrics | grep caddy_usage_requests_total
+curl -s localhost:2019/metrics | grep caddy_usage_requests_by_ip
 ```
 
 ### Sample Metrics Output
@@ -262,10 +283,10 @@ topk(10, sum by (header_value) (caddy_usage_requests_by_headers_total{header_nam
 ## Building from Source
 
 ```bash
-bash -c "git clone https://github.com/chalabi/caddy-usage"
-bash -c "cd caddy-usage"
-bash -c "make deps"
-bash -c "make xcaddy-build"
+git clone https://github.com/chalabi/caddy-usage
+cd caddy-usage
+make deps
+make xcaddy-build
 ```
 
 ## Testing
@@ -273,9 +294,9 @@ bash -c "make xcaddy-build"
 Run the test suite:
 
 ```bash
-bash -c "make test"        # Run unit tests
-bash -c "make benchmark"   # Run benchmarks
-bash -c "make ci"          # Run all CI checks
+make test        # Run unit tests
+make benchmark   # Run benchmarks
+make ci          # Run all CI checks
 ```
 
 ## License

@@ -2,59 +2,107 @@
 # This configuration enables comprehensive request metrics collection
 
 {
-    # Enable Caddy's built-in metrics system
-    servers {
-        metrics
-    }
+    # Enable Caddy's built-in metrics system globally
+    metrics
     
-    # Optional: Set admin API endpoint
+    # Set admin API endpoint where metrics will be exposed
     admin localhost:2019
+
 }
 
 # Main site configuration
 example.com {
-    # Enable usage metrics collection
-    # This directive automatically collects all request metrics
+    # Enable usage metrics collection for all requests to this site
+    # This should be early in the handler chain to capture all requests
     usage
     
-    # Serve static files from current directory
-    file_server
-    
-    # Optional: Add some routes to demonstrate metrics collection
-    route /api/* {
-        usage  # Can be added to specific routes too
-        respond "API Response"
+    # Handle API routes with specific metrics
+    handle /api/* {
+        usage  # Additional usage tracking for API-specific metrics
+        respond "API Response: {method} {uri}" 200
     }
     
-    route /health {
+    # Health check endpoint
+    handle /health {
         usage
         respond "OK" 200
     }
-}
-
-# Another site example
-api.example.com {
-    usage
     
-    # Reverse proxy example
-    reverse_proxy localhost:8080
-}
-
-# Development site with detailed logging
-localhost:8080 {
-    usage
-    
-    # Enable request logging for debugging
-    log {
-        output file /var/log/caddy/access.log
-        format json
+    # Handle metrics exposure on this domain (optional)
+    handle /metrics {
+        # Optionally expose metrics on the main domain
+        # Note: This requires additional configuration and is not typical
+        respond "Metrics available at admin endpoint" 200
     }
     
-    respond "Development Server"
+    # Default handler for all other requests
+    handle {
+        # Serve static files from current directory
+        file_server
+    }
 }
 
-# The metrics will be available at:
-# http://localhost:2019/metrics (default admin endpoint)
+# API subdomain example
+api.example.com {
+    # Usage metrics for API subdomain
+    usage
+    
+    # Rate limiting example (optional)
+    # rate_limit {
+    #     zone api_zone
+    #     key {remote_host}
+    #     events 100
+    #     window 1m
+    # }
+    
+    # Reverse proxy to backend service
+    reverse_proxy localhost:8080 {
+        # Health checks for upstream
+        health_uri /health
+        health_interval 30s
+    }
+}
+
+# Development and testing site
+localhost:8080 {
+    # Usage metrics for development
+    usage
+    
+    # Enable detailed logging for development
+    log {
+        output file /var/log/caddy/dev-access.log
+        format json
+        level DEBUG
+    }
+    
+    # Handle different endpoints for testing
+    handle /test/* {
+        usage  # Track test endpoint usage
+        respond "Test endpoint: {uri}" 200
+    }
+    
+    handle /api/v1/* {
+        usage
+        respond `{"message": "API v1 Response", "path": "{uri}", "method": "{method}"}` 200 {
+            header Content-Type application/json
+        }
+    }
+    
+    # Default response for development
+    handle {
+        respond "Development Server - Usage Metrics Enabled" 200
+    }
+}
+
+# Metrics are automatically available at:
+# http://localhost:2019/metrics
 # 
-# To view metrics, you can use:
-# curl http://localhost:2019/metrics | grep caddy_usage 
+# To view usage metrics specifically:
+# curl http://localhost:2019/metrics | grep caddy_usage
+#
+# Example usage metrics exposed:
+# - caddy_usage_requests_total
+# - caddy_usage_requests_by_ip_total  
+# - caddy_usage_requests_by_url_total
+# - caddy_usage_requests_by_headers_total
+# - caddy_usage_request_duration_seconds 
